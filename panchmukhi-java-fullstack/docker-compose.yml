@@ -1,0 +1,250 @@
+# Panchmukhi Trading Brain Pro - Docker Compose Configuration
+# Complete stack with all services
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: panchmukhi-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: panchmukhi_trading
+      POSTGRES_USER: panchmukhi_user
+      POSTGRES_PASSWORD: panchmukhi_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - panchmukhi-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U panchmukhi_user -d panchmukhi_trading" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # MongoDB Database
+  mongodb:
+    image: mongo:7.0
+    container_name: panchmukhi-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: panchmukhi_admin
+      MONGO_INITDB_ROOT_PASSWORD: panchmukhi_admin_pass
+      MONGO_INITDB_DATABASE: panchmukhi_logs
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+      - ./database/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
+    networks:
+      - panchmukhi-network
+    command: mongod --auth
+    healthcheck:
+      test: [ "CMD", "mongosh", "--eval", "db.adminCommand('ping')" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: panchmukhi-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - panchmukhi-network
+    healthcheck:
+      test: [ "CMD", "redis-cli", "ping" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  # Java Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: panchmukhi-backend
+    restart: unless-stopped
+    environment:
+      SPRING_PROFILES_ACTIVE: docker
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/panchmukhi_trading
+      SPRING_DATASOURCE_USERNAME: panchmukhi_user
+      SPRING_DATASOURCE_PASSWORD: panchmukhi_pass
+      SPRING_DATA_MONGODB_URI: mongodb://panchmukhi_admin:panchmukhi_admin_pass@mongodb:27017/panchmukhi_logs?authSource=admin
+      SPRING_REDIS_HOST: redis
+      SPRING_REDIS_PORT: 6379
+      JWT_SECRET: panchmukhi-super-secret-key-change-in-production-for-docker
+      ML_SERVICE_URL: http://ml-services:8000
+    ports:
+      - "8083:8083"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - panchmukhi-network
+    volumes:
+      - backend_logs:/app/logs
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8083/actuator/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # Python ML Services
+  ml-services:
+    build:
+      context: ./ml-services
+      dockerfile: Dockerfile
+    container_name: panchmukhi-ml-services
+    restart: unless-stopped
+    environment:
+      PORT: 8000
+      HOST: 0.0.0.0
+      MONGODB_URL: mongodb://panchmukhi_admin:panchmukhi_admin_pass@mongodb:27017/panchmukhi_logs?authSource=admin
+      REDIS_URL: redis://redis:6379
+    ports:
+      - "8000:8000"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - panchmukhi-network
+    volumes:
+      - ml_models:/app/models
+      - ml_logs:/app/logs
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8000/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: panchmukhi-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/sites-available:/etc/nginx/sites-available:ro
+      - nginx_logs:/var/log/nginx
+    depends_on:
+      - backend
+      - ml-services
+    networks:
+      - panchmukhi-network
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  # Frontend (Optional - can be served separately)
+  frontend:
+    image: nginx:alpine
+    container_name: panchmukhi-frontend
+    restart: unless-stopped
+    ports:
+      - "8080:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+      - ./nginx/nginx-frontend.conf:/etc/nginx/nginx.conf:ro
+    networks:
+      - panchmukhi-network
+    depends_on:
+      - backend
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/index.html" ]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 10s
+
+  # Monitoring - Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: panchmukhi-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=30d'
+      - '--web.enable-lifecycle'
+    networks:
+      - panchmukhi-network
+    depends_on:
+      - backend
+      - ml-services
+
+  # Monitoring - Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: panchmukhi-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: admin123
+      GF_USERS_ALLOW_SIGN_UP: false
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning
+    networks:
+      - panchmukhi-network
+    depends_on:
+      - prometheus
+
+networks:
+  panchmukhi-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  postgres_data:
+    driver: local
+  mongodb_data:
+    driver: local
+  redis_data:
+    driver: local
+  backend_logs:
+    driver: local
+  ml_models:
+    driver: local
+  ml_logs:
+    driver: local
+  nginx_logs:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local

@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ISRO Satellite Data - Panchmukhi Trading Brain Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/echarts/5.4.3/echarts.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Marathi:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #FF6B35;
+            --secondary: #1A1A1A;
+            --accent: #FFFFFF;
+            --success: #22C55E;
+            --danger: #EF4444;
+            --warning: #F59E0B;
+            --info: #3B82F6;
+            --purple: #8B5CF6;
+            --pink: #EC4899;
+        }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--secondary);
+            color: var(--accent);
+            overflow-x: hidden;
+        }
+        
+        .marathi-text {
+            font-family: 'Noto Sans Marathi', sans-serif;
+        }
+        
+        .mono-text {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .glass-card {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .glass-card:hover {
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 107, 53, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 20px 40px rgba(255, 107, 53, 0.2);
+        }
+        
+        .nav-blur {
+            background: rgba(26, 26, 26, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        /* Navigation link styles */
+        .nav-link {
+            display: inline-block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            letter-spacing: 0.5px;
+        }
+
+        /* Glass card button tweaks */
+        .glass-card {
+            transition: all 0.2s ease;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255, 107, 53, 0.4) !important;
+        }
+
+        /* Language selector styling */
+        .language-selector select {
+            cursor: pointer;
+        }
+
+        /* Header responsive adjustments */
+        @media (max-width: 1024px) {
+            .nav-link {
+                font-size: 0.8125rem;
+            }
+        }
+
+        .notification-badge {
+            position: absolute;
+            top: -5px;
+            right: -5px;
+            background: #EF4444;
+            color: white;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        /* Theme variants */
+        body.light-theme {
+            --secondary: #F8FAFC;
+            --accent: #0F172A;
+            --primary: #FF6B35;
+            background: var(--secondary);
+            color: var(--accent);
+        }
+
+        body.dark-theme {
+            --secondary: #1A1A1A;
+            --accent: #FFFFFF;
+            background: var(--secondary);
+            color: var(--accent);
+        }
+
+        /* Select / option contrast fixes */
+        select, select option {
+            color: #0F172A;
+            background: #FFFFFF;
+        }
+        body.dark-theme select, body.dark-theme select option {
+            color: #FFFFFF;
+            background: rgba(255,255,255,0.04);
+        }
+        
+        .gradient-text {
+            background: linear-gradient(135deg, var(--primary), var(--info));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.6s ease;
+        }
+        
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+        
+        .map-container {
+            height: 500px;
+            width: 100%;
+            border-radius: 16px;
+            z-index: 1;
+        }
+        
+        .satellite-orbit {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 300px;
+            height: 300px;
+            border: 1px dashed rgba(59, 130, 246, 0.3);
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            animation: orbit 20s linear infinite;
+            pointer-events: none;
+        }
+        
+        .satellite-icon {
+            position: absolute;
+            top: -15px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 30px;
+            height: 30px;
+            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="%233B82F6"><path d="M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.16.12-.36.18-.57.18-.21 0-.41-.06-.57-.18l-7.9-4.44A.991.991 0 0 1 3 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44A.99.99 0 0 1 12 2.1c.21 0 .41.06.57.18l7.9 4.44c.32.17.53.5.53.88v9zM12 4.15L6.04 7.5 12 10.85l5.96-3.35L12 4.15z"/></svg>') no-repeat center/contain;
+            filter: drop-shadow(0 0 10px #3B82F6);
+        }
+        
+        @keyframes orbit {
+            from { transform: translate(-50%, -50%) rotate(0deg); }
+            to { transform: translate(-50%, -50%) rotate(360deg); }
+        }
+        
+        .heatmap-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 4px;
+        }
+        
+        .heat-cell {
+            aspect-ratio: 1;
+            border-radius: 4px;
+            transition: all 0.3s ease;
+            position: relative;
+            cursor: pointer;
+        }
+        
+        .heat-cell:hover {
+            transform: scale(1.1);
+            z-index: 10;
+            box-shadow: 0 0 15px rgba(255, 107, 53, 0.5);
+        }
+        
+        .tooltip {
+            position: absolute;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 12px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            z-index: 100;
+            white-space: nowrap;
+        }
+        
+        .heat-cell:hover .tooltip {
+            opacity: 1;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+    </style>
+</head>
+<body>
+    <div id="site-header"></div>
+    <script src="js/include-header.js"></script>
+    <!-- Navigation (will be replaced by shared header) -->
+    <!-- Navigation handled by include-header.js -->
+
+    <!-- Hero Section -->
+    <section class="pt-24 pb-12 px-6">
+        <div class="max-w-7xl mx-auto text-center">
+            <h1 class="text-5xl md:text-6xl font-bold mb-6 gradient-text marathi-text fade-in" data-lang-key="satellite-data">
+                ISRO Satellite Data
+            </h1>
+            <p class="text-xl text-gray-300 max-w-3xl mx-auto fade-in">
+                Real-time industrial activity monitoring using thermal imaging and night-light data from Indian satellites
+            </p>
+        </div>
+    </section>
+
+    <!-- Main Map View -->
+    <section class="py-12 px-6">
+        <div class="max-w-7xl mx-auto">
+            <div class="glass-card p-1 relative fade-in">
+                <div id="industrialMap" class="map-container"></div>
+                
+                <!-- Map Controls Overlay -->
+                <div class="absolute top-4 right-4 bg-gray-900/90 p-4 rounded-xl backdrop-blur-md border border-gray-700 w-64">
+                    <h3 class="font-bold mb-3 marathi-text">Map Layers</h3>
+                    <div class="space-y-2">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" checked class="form-checkbox text-blue-500 rounded bg-gray-700 border-gray-600">
+                            <span class="text-sm">Thermal Hotspots</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" checked class="form-checkbox text-yellow-500 rounded bg-gray-700 border-gray-600">
+                            <span class="text-sm">Night Light Intensity</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" class="form-checkbox text-green-500 rounded bg-gray-700 border-gray-600">
+                            <span class="text-sm">Traffic Movement</span>
+                        </label>
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" class="form-checkbox text-purple-500 rounded bg-gray-700 border-gray-600">
+                            <span class="text-sm">Port Activity</span>
+                        </label>
+                    </div>
+                    
+                    <div class="mt-4 pt-4 border-t border-gray-700">
+                        <div class="flex items-center justify-between text-xs text-gray-400 mb-2">
+                            <span>Last Update:</span>
+                            <span class="text-white">10 mins ago</span>
+                        </div>
+                        <div class="flex items-center justify-between text-xs text-gray-400">
+                            <span>Satellite:</span>
+                            <span class="text-white">INSAT-3D</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Industrial Zones Analysis -->
+    <section class="py-12 px-6">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl font-bold mb-8 marathi-text text-center fade-in">
+                Industrial Activity Index
+            </h2>
+            
+            <div class="grid md:grid-cols-3 gap-6 fade-in">
+                <!-- Zone 1: Jamnagar -->
+                <div class="glass-card p-6" data-zone="jamnagar">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold">Jamnagar Refinery (RIL)</h3>
+                            <p class="text-sm text-gray-400">Gujarat</p>
+                        </div>
+                        <div class="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-bold border border-green-500/30">
+                            HIGH ACTIVITY
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-400">Thermal Output</span>
+                                <span class="text-orange-400 font-bold">98.5%</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-1.5">
+                                <div class="bg-orange-500 h-1.5 rounded-full" style="width: 98.5%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-400">Transport Movement</span>
+                                <span class="text-blue-400 font-bold">High</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-1.5">
+                                <div class="bg-blue-500 h-1.5 rounded-full" style="width: 85%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center pt-2 border-t border-gray-700">
+                            <span class="text-xs text-gray-400">Impact on RELIANCE</span>
+                            <span class="text-green-400 font-bold text-sm">POSITIVE</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Zone 2: Jamshedpur -->
+                <div class="glass-card p-6" data-zone="jamshedpur">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold">Jamshedpur (TATA Steel)</h3>
+                            <p class="text-sm text-gray-400">Jharkhand</p>
+                        </div>
+                        <div class="bg-yellow-500/20 text-yellow-400 px-3 py-1 rounded-full text-xs font-bold border border-yellow-500/30">
+                            MODERATE
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-400">Thermal Output</span>
+                                <span class="text-orange-400 font-bold">72.3%</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-1.5">
+                                <div class="bg-orange-500 h-1.5 rounded-full" style="width: 72.3%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-400">Transport Movement</span>
+                                <span class="text-blue-400 font-bold">Medium</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-1.5">
+                                <div class="bg-blue-500 h-1.5 rounded-full" style="width: 65%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center pt-2 border-t border-gray-700">
+                            <span class="text-xs text-gray-400">Impact on TATASTEEL</span>
+                            <span class="text-yellow-400 font-bold text-sm">NEUTRAL</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Zone 3: Hazira -->
+                <div class="glass-card p-6" data-zone="hazira">
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h3 class="text-xl font-bold">Hazira Port (Adani)</h3>
+                            <p class="text-sm text-gray-400">Gujarat</p>
+                        </div>
+                        <div class="bg-green-500/20 text-green-400 px-3 py-1 rounded-full text-xs font-bold border border-green-500/30">
+                            HIGH ACTIVITY
+                        </div>
+                    </div>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-400">Port Activity</span>
+                                <span class="text-purple-400 font-bold">Very High</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-1.5">
+                                <div class="bg-purple-500 h-1.5 rounded-full" style="width: 92%"></div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <div class="flex justify-between text-sm mb-1">
+                                <span class="text-gray-400">Container Movement</span>
+                                <span class="text-blue-400 font-bold">High</span>
+                            </div>
+                            <div class="w-full bg-gray-700 rounded-full h-1.5">
+                                <div class="bg-blue-500 h-1.5 rounded-full" style="width: 88%"></div>
+                            </div>
+                        </div>
+                        
+                        <div class="flex justify-between items-center pt-2 border-t border-gray-700">
+                            <span class="text-xs text-gray-400">Impact on ADANIPORTS</span>
+                            <span class="text-green-400 font-bold text-sm">POSITIVE</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+    <!-- Heatmap & Anomaly Detection -->
+    <section class="py-12 px-6 bg-gradient-to-r from-gray-900 to-gray-800">
+        <div class="max-w-7xl mx-auto">
+            <h2 class="text-3xl font-bold mb-8 marathi-text text-center fade-in">
+                Data Visualization
+            </h2>
+            
+            <div class="grid md:grid-cols-2 gap-8 fade-in">
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold mb-4 marathi-text">Activity Heatmap</h3>
+                    <p class="text-sm text-gray-400 mb-4">Regional industrial activity concentration based on night lights</p>
+                    <div id="activityHeatmap" class="heatmap-grid w-full aspect-video bg-gray-800/50 rounded-lg p-2">
+                        <!-- Heatmap cells generated by JS -->
+                    </div>  
+                    <div class="flex justify-between items-center mt-4 text-xs text-gray-400">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-3 h-3 bg-gray-800 rounded"></div>
+                            <span>Low</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-3 h-3 bg-orange-500 rounded"></div>
+                            <span>High</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="glass-card p-6">
+                    <h3 class="text-xl font-bold mb-4 marathi-text">Anomaly Detection Breakdown</h3>
+                    <div id="anomalyChart" class="w-full h-64"></div>
+                    <div class="space-y-3 mt-4">
+                        <div class="flex items-center justify-between p-2 bg-red-500/10 rounded border border-red-500/20">
+                            <span class="text-sm font-semibold text-red-400">Critical Alert</span>
+                            <span class="text-xs text-gray-300">Unusual thermal Spike in Zone 4</span>
+                        </div>
+                        <div class="flex items-center justify-between p-2 bg-yellow-500/10 rounded border border-yellow-500/20">
+                            <span class="text-sm font-semibold text-yellow-400">Warning</span>
+                            <span class="text-xs text-gray-300">Traffic congestion near port</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 px-6 bg-gray-900 border-t border-gray-800">
+        <div class="max-w-7xl mx-auto text-center">
+            <div class="flex items-center justify-center space-x-4 mb-6">
+                <div class="w-12 h-12 bg-gradient-to-r from-orange-500 to-yellow-500 rounded-lg flex items-center justify-center">
+                    <span class="text-white font-bold text-xl">पं</span>
+                </div>
+                <div>
+                    <h3 class="text-2xl font-bold marathi-text">Panchmukhi Trading Brain Pro</h3>
+                    <p class="text-gray-400">India's Most Advanced AI Trading Platform</p>
+                </div>
+            </div>
+            <p class="text-gray-400">
+                © 2024 Panchmukhi Trading Brain Pro. All rights reserved.
+            </p>
+        </div>
+    </footer>
+
+    <script src="js/isro.js"></script>
+    <script src="js/isro.js"></script>
+    <script src="js/main.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(() => {
+                if (window.app && !window.app.checkAccess(2)) { // Require PRO level
+                    // Blur the content instead of removing it for a teaser effect
+                    const mainContent = document.querySelectorAll('section');
+                    mainContent.forEach(el => el.style.filter = 'blur(10px)');
+                    window.app.showUpgradeModal();
+                }
+            }, 500);
+        });
+    </script>
+    <script>
+        // Inline script to initialize heatmap if JS fails to load or for demo
+        document.addEventListener('DOMContentLoaded', () => {
+            const heatmapContainer = document.getElementById('activityHeatmap');
+            if(heatmapContainer && heatmapContainer.children.length === 0) {
+                // Generate dummy heatmap cells
+                for(let i=0; i<50; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'heat-cell';
+                    const intensity = Math.random();
+                    let color = 'rgba(26, 26, 26, 0.5)';
+                    if(intensity > 0.8) color = '#EF4444'; 
+                    else if(intensity > 0.6) color = '#F59E0B';
+                    else if(intensity > 0.4) color = '#3B82F6';
+                    else if(intensity > 0.2) color = '#22C55E';
+                    
+                    cell.style.backgroundColor = color;
+                    cell.style.opacity = 0.5 + intensity * 0.5;
+                    
+                    // Tooltip
+                    const tooltip = document.createElement('div');
+                    tooltip.className = 'tooltip';
+                    tooltip.textContent = `Activity: ${(intensity * 100).toFixed(0)}%`;
+                    cell.appendChild(tooltip);
+                    
+                    heatmapContainer.appendChild(cell);
+                }
+            }
+        });
+    </script>
+<!-- CONTENT_SPLIT_MARKER -->
+</body>
+</html>

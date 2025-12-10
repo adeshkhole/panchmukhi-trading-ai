@@ -1,0 +1,72 @@
+# Panchmukhi Trading Brain Pro - ML Services Requirements
+# Updated for Python 3.11
+
+# Core Framework
+fastapi>=0.104.1,<1.0.0
+uvicorn>=0.24.0,<1.0.0
+pydantic>=2.5.0,<3.0.0
+python-multipart>=0.0.6
+
+# Machine Learning & Data Science
+numpy>=1.24.3,<2.0.0
+pandas>=2.1.3,<3.0.0
+scikit-learn>=1.3.2,<2.0.0
+tensorflow>=2.15.0,<3.0.0
+torch>=2.1.1,<3.0.0
+transformers>=4.35.2,<5.0.0
+
+# Natural Language Processing
+nltk>=3.8.1,<4.0.0
+spacy>=3.7.2,<4.0.0
+textblob>=0.17.1,<0.18.0
+vaderSentiment>=3.3.2,<4.0.0
+indic-nlp-library>=0.92,<1.0.0  # Using latest available version
+
+# Time Series Analysis
+statsmodels==0.14.0
+prophet==1.1.5
+
+# Financial Data Analysis
+yfinance==0.2.28
+alpha-vantage==2.3.1
+quandl==3.7.0
+
+# Database & Caching
+redis==5.0.1
+pymongo==4.6.0
+motor>=3.3.2
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23
+
+# API & HTTP
+requests==2.31.0
+httpx==0.25.2
+aiohttp==3.9.1
+beautifulsoup4==4.12.2
+lxml==4.9.3
+fake-useragent==1.4.0
+
+# Data Visualization
+matplotlib==3.8.2
+seaborn==0.13.0
+plotly==5.18.0
+
+# Utilities
+python-dotenv==1.0.0
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
+python-dateutil==2.8.2
+schedule==1.2.0
+loguru==0.7.2
+
+# Development & Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+pre-commit==3.5.0
+
+# Production
+gunicorn==21.2.0
+gevent==23.9.1

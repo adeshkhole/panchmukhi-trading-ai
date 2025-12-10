@@ -1,0 +1,59 @@
+# Java / Maven
+target/
+*.log
+*.class
+*.jar
+!backend/src/main/resources/**/*.jar
+
+# Spring Boot
+spring.log
+
+# IDEs
+.idea/
+*.iml
+*.iws
+.project
+.classpath
+.settings/
+.vscode/
+
+# OS files
+Thumbs.db
+.DS_Store
+*.swp
+*~
+
+# Frontend build artefacts
+frontend/dist/
+frontend/node_modules/
+frontend/.cache/
+
+# Python (ML services)
+__pycache__/
+*.py[cod]
+*.so
+.Python
+env/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Secrets & Config
+*.env
+.env.local
+application-local.properties
+application-dev.properties
+
+# Large files (use Git LFS for these)
+*.bin
+*.pkl
+*.h5
+*.pb
+*.onnx
+*.pth
+*.pt
